@@ -74,7 +74,13 @@ void MainWindow_User::createRecordPanel()
 }
 void MainWindow_User::borrowInfo()
 {
-    QSqlRecord record_b=tableModel_b->record(ui->tableView_book->currentIndex().row());
+    QModelIndex currentIndex = ui->tableView_book->currentIndex();
+    if (!currentIndex.isValid()) {
+        QMessageBox::warning(this, tr("Warning"), tr("Please select a book first"));
+        return;
+    }
+    
+    QSqlRecord record_b=tableModel_b->record(currentIndex.row());
     QString str_b=record_b.value(0).toString();
     QString str_bo_y=QString::number(QDate::currentDate().year());
     QString str_bo_m=QString::number(QDate::currentDate().month());
@@ -84,7 +90,7 @@ void MainWindow_User::borrowInfo()
     QString str_r_m=QString::number(r_d.month());
     QString str_r_d=QString::number(r_d.day());
     qDebug()<<QString("INSERT INTO BORROW VALUES('%1','%2',to_date('%3-%4-%5','YYYY-MM-DD'),to_date('%6-%7-%8','YYYY-MM-DD'))").arg(str_b,uid,str_bo_y,str_bo_m,str_bo_d,str_r_y,str_r_m,str_r_d);
-    QSqlQuery tmp(QString("INSERT INTO BORROW VALUES('%1','%2',to_date('%3-%4-%5','YYYY-MM-DD'),to_date('%6-%7-%8','YYYY-MM-DD'))").arg(str_b,uid,str_bo_y,str_bo_m,str_bo_d,str_r_y,str_r_m,str_bo_d));
+    QSqlQuery tmp(QString("INSERT INTO BORROW VALUES('%1','%2',to_date('%3-%4-%5','YYYY-MM-DD'),to_date('%6-%7-%8','YYYY-MM-DD'))").arg(str_b,uid,str_bo_y,str_bo_m,str_bo_d,str_r_y,str_r_m,str_r_d));
     if(!tmp.isActive()){
         QMessageBox::warning(this,tr("DataBase Error"),tmp.lastError().text());
     }
