@@ -7,19 +7,40 @@
 #include <QtSql>
 #include<QtWidgets>
 #include <QDebug>
-MainWindow::MainWindow(QWidget *parent,QSqlDatabase *db): QMainWindow(parent), ui(new Ui::MainWindow),db(db),queryModel(nullptr),flag(all_stu)
+MainWindow::MainWindow(QWidget *parent, QSqlDatabase *db)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+    , db(db)
+    , queryModel(nullptr)
+    , flag(all_stu)
+    , block(new QButtonGroup(this))
 {
-    
     ui->setupUi(this);
-    block=new QButtonGroup(this);
-    block->addButton(ui->radioButton_over_time,over_time);
-    block->addButton(ui->radioButton_book_stu,select_stu);
-    block->addButton(ui->radioButton_all_stu,all_stu);
-    ui->radioButton_all_stu->setChecked(1);
-	createBookPanel();
+    initializeUI();
+    setupConnections();
+}
+
+MainWindow::~MainWindow()
+{
+    delete db;
+    delete ui;
+}
+
+void MainWindow::initializeUI()
+{
+    block->addButton(ui->radioButton_over_time, over_time);
+    block->addButton(ui->radioButton_book_stu, select_stu);
+    block->addButton(ui->radioButton_all_stu, all_stu);
+    ui->radioButton_all_stu->setChecked(true);
+    
+    createBookPanel();
     createStuPanel();
-    connect(ui->pushButton_book_register,SIGNAL(clicked()),this,SLOT(registerBookInfo()));
-    connect(ui->pushButton_book_edit,SIGNAL(clicked()),this,SLOT(editBookInfo()));
+}
+
+void MainWindow::setupConnections()
+{
+    connect(ui->pushButton_book_register, &QPushButton::clicked, this, &MainWindow::registerBookInfo);
+    connect(ui->pushButton_book_edit, &QPushButton::clicked, this, &MainWindow::editBookInfo);
     connect(ui->pushButton_find_book,SIGNAL(clicked()),this,SLOT(findBookInfo()));
     connect(ui->pushButton_stu_edit,SIGNAL(clicked()),this,SLOT(editStuInfo()));
     connect(ui->pushButton_stu_register,SIGNAL(clicked()),this,SLOT(registerStuInfo()));
@@ -31,12 +52,6 @@ MainWindow::MainWindow(QWidget *parent,QSqlDatabase *db): QMainWindow(parent), u
     connect(ui->pushButton_all_record,SIGNAL(clicked()),this,SLOT(allRecord()));
     connect(ui->pushButton_show_all,SIGNAL(clicked()),this,SLOT(all_show()));
     ui->tableView_book->setCurrentIndex(bookModel->index(0, 0));
-}
-
-MainWindow::~MainWindow()
-{
-    delete db;
-    delete ui;
 }
 
 void MainWindow::createBookPanel()
@@ -223,6 +238,23 @@ void MainWindow::setBookUpdateStuView()
 
 void MainWindow::updateStuView()
 {
+    switch(flag) {
+        case select_stu:
+            updateSelectedStuView();
+            break;
+        case all_stu:
+            updateAllStuView();
+            break;
+        case over_time:
+            updateOverTimeStuView();
+            break;
+    }
+    updateViewTable();
+    ui->tableView_stu->horizontalHeader()->setVisible(bookModel->rowCount() > 0);
+}
+
+void MainWindow::updateSelectedStuView()
+{
     QModelIndex index = ui->tableView_book->currentIndex();
     if (index.isValid()&&flag==select_stu) {
         QSqlRecord record = bookModel->record(index.row());
@@ -239,24 +271,27 @@ void MainWindow::updateStuView()
         queryModel->setHeaderData(User_rank, Qt::Horizontal, tr("Rank"));
         ui->tableView_stu->setModel(queryModel);
         }
-    if(flag==all_stu){
-        stuModel->select();
-        ui->tableView_stu->setModel(stuModel);
-    }
-    if(flag==over_time){
-        if(queryModel==nullptr)
-            queryModel=new QSqlQueryModel;
-        qDebug()<<QString("select BOOK_NAME,BORROW.USER_UID,USER_NAME,TO_NUMBER(TO_DATE(SYSDATE)-DATE_TETURN_LIMIT) from BOOK,BOOK_USER,BORROW where BOOK.ISBN=BORROW.ISBN AND BOOK_USER.USER_UID=BORROW.USER_UID AND TO_NUMBER(DATE_TETURN_LIMIT-TO_DATE(SYSDATE))<0;");
-        queryModel->setQuery(QString("select BOOK_NAME,BORROW.USER_UID,USER_NAME,TO_NUMBER(TO_DATE(SYSDATE)-DATE_TETURN_LIMIT) from BOOK,BOOK_USER,BORROW where BOOK.ISBN=BORROW.ISBN AND BOOK_USER.USER_UID=BORROW.USER_UID AND TO_NUMBER(DATE_TETURN_LIMIT-TO_DATE(SYSDATE))<0"));
-        queryModel->setHeaderData(User_uid, Qt::Horizontal, tr("BOOK_NAME"));
-        queryModel->setHeaderData(User_name, Qt::Horizontal, tr("USER_UID"));
-        queryModel->setHeaderData(User_sex, Qt::Horizontal, tr("USER_NAME"));
-        queryModel->setHeaderData(User_pro, Qt::Horizontal, tr("OVER_DAY"));
-        ui->tableView_stu->setModel(queryModel);
-    }
-    updateViewTable();
-    ui->tableView_stu->horizontalHeader()->setVisible(bookModel->rowCount() > 0);
 }
+
+void MainWindow::updateAllStuView()
+{
+    stuModel->select();
+    ui->tableView_stu->setModel(stuModel);
+}
+
+void MainWindow::updateOverTimeStuView()
+{
+    if(queryModel==nullptr)
+        queryModel=new QSqlQueryModel;
+    qDebug()<<QString("select BOOK_NAME,BORROW.USER_UID,USER_NAME,TO_NUMBER(TO_DATE(SYSDATE)-DATE_TETURN_LIMIT) from BOOK,BOOK_USER,BORROW where BOOK.ISBN=BORROW.ISBN AND BOOK_USER.USER_UID=BORROW.USER_UID AND TO_NUMBER(DATE_TETURN_LIMIT-TO_DATE(SYSDATE))<0;");
+    queryModel->setQuery(QString("select BOOK_NAME,BORROW.USER_UID,USER_NAME,TO_NUMBER(TO_DATE(SYSDATE)-DATE_TETURN_LIMIT) from BOOK,BOOK_USER,BORROW where BOOK.ISBN=BORROW.ISBN AND BOOK_USER.USER_UID=BORROW.USER_UID AND TO_NUMBER(DATE_TETURN_LIMIT-TO_DATE(SYSDATE))<0"));
+    queryModel->setHeaderData(User_uid, Qt::Horizontal, tr("BOOK_NAME"));
+    queryModel->setHeaderData(User_name, Qt::Horizontal, tr("USER_UID"));
+    queryModel->setHeaderData(User_sex, Qt::Horizontal, tr("USER_NAME"));
+    queryModel->setHeaderData(User_pro, Qt::Horizontal, tr("OVER_DAY"));
+    ui->tableView_stu->setModel(queryModel);
+}
+
 void MainWindow::updateBookView()
 {
     bookModel->select();
